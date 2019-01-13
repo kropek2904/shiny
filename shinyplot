@@ -1,0 +1,51 @@
+ui <- basicPage(
+  mainPanel(DT::dataTableOutput('mytable')),
+  textOutput("selected"),
+  uiOutput("plots")
+)
+
+server <- function(input, output,session) {
+  
+  mydata <- reactive({mtcars})
+  
+  output$mytable = DT::renderDataTable(    
+    DT::datatable(mydata())
+  ) 
+  
+  selectedRow <- eventReactive(input$mytable_rows_selected,{
+    w<-input$mytable_rows_selected
+  })
+  
+  output$selected <- renderText({ 
+    selectedRow()
+  })
+  
+  
+  createPlots <- reactive ({ 
+    n <- length(selectedRow()) 
+    for (i in 1:n) {
+      local({
+        my_i <- i
+        plotname <- paste("plot", my_i, sep="")
+        output[[plotname]] <- renderPlot({
+          plot(as.numeric(as.vector(mydata()[selectedRow()[i],c(2,3)])), type = "lines",cex=0.2)
+        })
+      })
+    }
+  })
+  
+  output$plots <- renderUI({
+    row <- selectedRow()
+    if (length(row)==0)
+      return(NULL)
+    createPlots()
+    numberofrows <- length(selectedRow()) 
+    plot_output_list <- lapply(1:numberofrows, function(i) {
+      plotname <- paste("plot", i, sep="")
+      plotOutput(plotname)
+    })
+    
+    do.call(tagList, plot_output_list)
+  })
+}
+runApp(list(ui = ui, server = server))
